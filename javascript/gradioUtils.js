@@ -19,7 +19,7 @@ function initEditorModal() {
     const img = getMaskImg();
     if (!img) return;
     const editor = new MaskEditor(gradioApp().getRootNode(), img);
-    editor.show();
+    editor.render();
 }
 
 
