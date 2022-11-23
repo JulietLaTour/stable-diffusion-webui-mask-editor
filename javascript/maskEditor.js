@@ -17,8 +17,8 @@ class MaskEditor {
         this.maskCanvas = document.createElement("canvas");
         this.transparentMaskCanvas = document.createElement("canvas");
         this.canvases = [this.drawCanvas, this.maskCanvas, this.transparentMaskCanvas];
-        this.savedPolygons = [];
         this.color = "black";
+        this.history = [];
     }
 
     render() {
@@ -183,6 +183,8 @@ class MaskEditor {
                 return;
             }
             if (!confirm("Close polygon ?")) return;
+
+            this.perimeter.push({'x': this.perimeter[0]["x"], 'y': this.perimeter[0]["y"]});
             this.draw(true, color);
 
         } else {
@@ -207,6 +209,9 @@ class MaskEditor {
     }
 
     draw(end, color) {
+        const history = [],
+            beforeCloseHistory = [];
+
         for (const canvas of this.canvases) {
             color = canvas.style.visibility === "hidden" ? "white" : this.color;
             const ctx = canvas.getContext("2d");
@@ -224,14 +229,32 @@ class MaskEditor {
                 }
             }
             if (end) {
-                this.closePolygon(ctx, color);
+                ctx.lineTo(this.perimeter[0]['x'], this.perimeter[0]['y']);
+                beforeCloseHistory.push({
+                    "canvas": canvas,
+                    "data": ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height),
+                    "perimeter": this.perimeter.slice(0, this.perimeter.length -1)
+                });
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.closePath();
             }
+            history.push({
+                "canvas": canvas,
+                "data": ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height),
+                "perimeter": this.perimeter.slice(0, this.perimeter.length -1)
+            });
             ctx.stroke();
         }
+
         if (end) {
-            this.savedPolygons.push([...this.perimeter]);
+            this.history.push(beforeCloseHistory);
             this.perimeter.splice(0, this.perimeter.length);
+        } else {
+            this.history.push(history);
         }
+
     }
 
     point(x, y, ctx, color) {
@@ -291,47 +314,27 @@ class MaskEditor {
         return false;
     }
 
-    closePolygon(ctx, color) {
-        if (!color) {
-            color = "black";
-        }
-        ctx.lineTo(this.perimeter[0]['x'], this.perimeter[0]['y']);
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.strokeStyle = color;
-        ctx.closePath();
-    }
-
-
     unDo(ev) {
         ev.preventDefault();
-
         this.clearCanvases();
-        // todo : handle multiple polygons
-        // if (this.savedPolygons.length){
-        //     const perimeter = [...this.perimeter];
-        //     for(const polygon of this.savedPolygons){
-        //         this.perimeter = [...polygon];
-        //         this.draw(false);
-        //         for (const canvas of this.canvases){
-        //             this.closePolygon(canvas.getContext("2d"))
-        //         }
-        //     }
-        //     if(perimeter.length){
-        //         this.perimeter = perimeter;
-        //     }else{
-        //         this.draw(true);
-        //     }
-        // }
 
-        this.perimeter.pop();
-        this.draw(false);
+        const history = this.history.pop();
+        if (history) {
+            for (const i of history) {
+                const ctx = i.canvas.getContext("2d");
+                ctx.putImageData(i.data, 0, 0);
+            }
+        }
+        if (this.history.length) {
+            this.perimeter = history[0].perimeter;
+        }
     }
 
     clearCanvases(ev) {
         if (ev) {
             ev.preventDefault();
             this.perimeter.splice(0, this.perimeter.length);
+            this.history.splice(0, this.perimeter.length);
         }
 
         const drawCtx = this.drawCanvas.getContext("2d");

@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
     try {
-        gradioApp().getRootNode().appendChild(modal);
         gradioApp().addEventListener("change", (ev) => {
             let parentNode = ev.target.parentNode;
             while (parentNode) {
@@ -14,14 +13,12 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (e) {
 
     }
-
-
 });
 
 function initEditorModal() {
     const img = getMaskImg();
     if (!img) return;
-    const editor = new MaskEditor(document.body, img);
+    const editor = new MaskEditor(gradioApp().getRootNode(), img);
     editor.show();
 }
 
